@@ -105,10 +105,9 @@ def run(c, cmd, timeout=120):
     marker = "__DONE__"
     c.sendline(f"{cmd}; echo {marker}$?")
     c.expect(rf"{marker}(\d+)", timeout=timeout)
-    out = c.before
-    # drop echoed command line
-    out = out.split("\n", 1)[1] if "\n" in out else ""
-    return int(c.match.group(1)), out.strip()
+    # Terminal echo and the prompt are off (see test_installed), so
+    # everything before the marker is the command's output.
+    return int(c.match.group(1)), c.before.strip()
 
 
 def test_installed(uefi):
@@ -122,7 +121,8 @@ def test_installed(uefi):
         c.expect("Password:")
         c.sendline(PASSWORD)
         c.expect(r"\$ ", timeout=60)
-        run(c, "export TERM=dumb PAGER=cat SYSTEMD_PAGER=cat; stty cols 200")
+        c.sendline("stty -echo cols 200; PS1=''; export TERM=dumb PAGER=cat SYSTEMD_PAGER=cat")
+        run(c, "true")
 
         rc, out = run(c, "systemctl get-default")
         check("default target is multi-user.target", out.endswith("multi-user.target"), out)
@@ -145,8 +145,11 @@ def test_installed(uefi):
         check("Mint apt wrapper active", "/usr/local/bin/apt" in out, out)
         rc, out = run(c, "ls /etc/apt/sources.list.d/; grep -c packages.linuxmint.com /etc/apt/sources.list.d/official-package-repositories.list")
         check("Mint repo configured", rc == 0, out)
-        rc, out = run(c, "systemctl is-active ssh.socket ssh.service systemd-networkd | sort -u | tr '\\n' ' '")
-        check("ssh socket + networkd active", "inactive" not in out and "failed" not in out, out)
+        # noble's sshd is socket-activated: ssh.service only runs per connection.
+        rc, out = run(c, "systemctl is-active ssh.socket systemd-networkd | sort -u | tr '\\n' ' '")
+        check("ssh socket + networkd active", out.strip() == "active", out)
+        rc, out = run(c, "timeout 10 bash -c 'exec 3<>/dev/tcp/127.0.0.1/22; head -c 7 <&3'")
+        check("sshd answers on :22", out.startswith("SSH-2.0"), out)
         rc, out = run(c, "ip -4 -o addr show scope global | awk '{print $4}'")
         check("DHCP address on wired NIC", out.startswith("10.0.2."), out)
         rc, out = run(c, f"echo {PASSWORD} | sudo -S -p '' ufw status | head -1")

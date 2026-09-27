@@ -32,7 +32,9 @@ TIMEZONE="Etc/UTC" SWAP="2G" SSHKEY="" FINISH="reboot"
 msg()  { echo "[mint-server-install] $*" | tee -a "$LOG"; }
 die()  {
     msg "ERROR: $*"
-    if [ "$AUTO" = 0 ]; then whiptail --title "$TITLE" --msgbox "Installation failed:\n\n$*\n\nSee $LOG" 14 70; fi
+    if [ "$AUTO" = 1 ]; then
+        echo "---- last lines of $LOG ----"; tail -n 40 "$LOG"
+    else whiptail --title "$TITLE" --msgbox "Installation failed:\n\n$*\n\nSee $LOG" 14 70; fi
     exit 1
 }
 ask()  { whiptail --title "$TITLE" "$@" 3>&1 1>&2 2>&3; }
@@ -66,7 +68,12 @@ part() {  # part /dev/sda 3 -> /dev/sda3 ; part /dev/nvme0n1 3 -> /dev/nvme0n1p3
 }
 
 valid_hostname() { [[ "$1" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]]; }
-valid_user()     { [[ "$1" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] && ! getent passwd "$1" >/dev/null; }
+# Check against the system being installed, not the live session (casper adds
+# its own live user).
+valid_user()     {
+    [[ "$1" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || return 1
+    ! unsquashfs -cat "$(find_squashfs)" etc/passwd 2>/dev/null | cut -d: -f1 | grep -qx "$1"
+}
 
 # ------------------------------------------------------------------ gather
 gather_auto() {
@@ -256,14 +263,15 @@ EOF
         || die "grub-install (BIOS) failed"
     if [ "$efi_mode" = 1 ]; then
         in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-            --bootloader-id=ubuntu --uefi-secure-boot --force-extra-removable >>"$LOG" 2>&1 \
+            --bootloader-id=ubuntu --uefi-secure-boot >>"$LOG" 2>&1 \
             || die "grub-install (UEFI) failed"
-    else
-        # Still make the disk UEFI-bootable via the removable-media path.
-        in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-            --bootloader-id=ubuntu --uefi-secure-boot --removable --no-nvram >>"$LOG" 2>&1 \
-            || die "grub-install (UEFI removable) failed"
     fi
+    # Also the removable-media path (EFI/BOOT/BOOTX64.EFI), so the disk boots
+    # on firmware with no NVRAM entry, or when installed from BIOS mode.
+    # (Ubuntu's grub-install has no --force-extra-removable.)
+    in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+        --bootloader-id=ubuntu --uefi-secure-boot --removable --no-nvram >>"$LOG" 2>&1 \
+        || die "grub-install (UEFI removable) failed"
     in_target update-initramfs -u -k all >>"$LOG" 2>&1
     in_target update-grub >>"$LOG" 2>&1 || die "update-grub failed"
 

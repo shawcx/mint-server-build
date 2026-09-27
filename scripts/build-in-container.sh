@@ -128,6 +128,8 @@ in_chroot MINT_RELEASE="$MINT_RELEASE" MINT_CODENAME="$MINT_CODENAME" \
 in_chroot sh -c 'apt-get -y install --no-install-recommends \
     -o Dpkg::Options::=--force-confnew /tmp/msb/mint-server-base_*_all.deb'
 mkdir -p "$OUT"
+rm -f "$OUT"/mint-server-base_*_all.deb
+rm -f "$OUT"/mint-server-base_*_all.deb
 cp "$CHROOT"/tmp/msb/mint-server-base_*_all.deb "$OUT/"
 rm -rf "$CHROOT/tmp/msb"
 
