@@ -1,0 +1,3 @@
+// Linux Mint Server: keep installs lean by default, like Ubuntu Server's
+// minimal footprint. Override per command with --install-recommends.
+APT::Install-Recommends "false";

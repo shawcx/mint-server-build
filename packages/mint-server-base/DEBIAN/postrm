@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+if [ "$1" = remove ] || [ "$1" = purge ]; then
+    for f in /etc/update-motd.d/10-help-text /etc/update-motd.d/50-motd-news; do
+        [ -e "$f" ] && chmod +x "$f"
+    done
+fi
+exit 0

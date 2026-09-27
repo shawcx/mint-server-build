@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+if [ "$1" = configure ]; then
+    # Replace Ubuntu MOTD chatter with the Mint Server help text.
+    for f in /etc/update-motd.d/10-help-text /etc/update-motd.d/50-motd-news; do
+        [ -e "$f" ] && chmod -x "$f"
+    done
+    if command -v glib-compile-schemas >/dev/null 2>&1; then
+        glib-compile-schemas /usr/share/glib-2.0/schemas || true
+    fi
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload || true
+    fi
+fi
+exit 0

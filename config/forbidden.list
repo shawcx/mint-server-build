@@ -1,0 +1,21 @@
+# Package name regexes (anchored, dpkg names) that must NOT be installed.
+# The build fails if any match. Keeps the server free of a graphical stack.
+xserver-xorg-core
+xwayland
+xorg
+lightdm.*
+gdm3
+sddm
+slick-greeter
+.*-desktop
+cinnamon.*
+mate-desktop.*
+xfce4.*
+gnome-shell.*
+plasma-.*
+mint-meta-(cinnamon|mate|xfce|core)
+mintsystem
+mint-common
+zenity
+snapd
+plymouth-theme-.*

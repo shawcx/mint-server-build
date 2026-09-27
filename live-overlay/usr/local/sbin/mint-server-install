@@ -1,0 +1,307 @@
+#!/bin/bash
+# Linux Mint Server installer (text mode).
+#
+# Interactive:  mint-server-install
+# Unattended:   mint-server-install --auto   (reads mintinstall.* from the kernel
+#               command line, e.g. appended at the ISO's GRUB menu):
+#   mintinstall.auto                 enable unattended mode
+#   mintinstall.disk=/dev/sda        target disk (required; WILL BE ERASED)
+#   mintinstall.hostname=srv01       default mint-server
+#   mintinstall.user=admin           default mint
+#   mintinstall.password=secret      plain text, or:
+#   mintinstall.password_hash='$6$…' crypt(3) hash (preferred)
+#   mintinstall.timezone=Europe/Oslo default Etc/UTC
+#   mintinstall.swap=2G              swap file size, 0 to disable (default 2G)
+#   mintinstall.finish=poweroff      reboot (default) | poweroff | shell
+set -euo pipefail
+
+TITLE="Linux Mint Server installer"
+TARGET=/target
+LOCK=/run/mint-server-install.lock
+LOG=/var/log/mint-server-install.log
+DATA=/usr/share/mint-server-install
+
+AUTO=0
+DISK="" HOSTNAME_="mint-server" USERNAME_="mint" PASSWORD="" PASSWORD_HASH=""
+TIMEZONE="Etc/UTC" SWAP="2G" SSHKEY="" FINISH="reboot"
+
+[ "$(id -u)" = 0 ] || { echo "Run as root." >&2; exit 1; }
+
+
+# ------------------------------------------------------------------ helpers
+msg()  { echo "[mint-server-install] $*" | tee -a "$LOG"; }
+die()  {
+    msg "ERROR: $*"
+    if [ "$AUTO" = 0 ]; then whiptail --title "$TITLE" --msgbox "Installation failed:\n\n$*\n\nSee $LOG" 14 70; fi
+    exit 1
+}
+ask()  { whiptail --title "$TITLE" "$@" 3>&1 1>&2 2>&3; }
+
+cmdline_arg() {  # cmdline_arg key -> value of mintinstall.key=
+    local w
+    for w in $(cat /proc/cmdline); do
+        case "$w" in "mintinstall.$1="*) echo "${w#*=}"; return 0 ;; esac
+    done
+    return 1
+}
+
+find_squashfs() {
+    local f
+    for f in /cdrom/casper/filesystem.squashfs /run/live/medium/casper/filesystem.squashfs; do
+        [ -f "$f" ] && { echo "$f"; return 0; }
+    done
+    f=$(find /media /mnt /run -maxdepth 4 -path '*/casper/filesystem.squashfs' 2>/dev/null | head -1)
+    [ -n "$f" ] && echo "$f"
+}
+
+# Disk that holds the live medium: never offer it as a target.
+medium_disk() {
+    local src
+    src=$(findmnt -no SOURCE /cdrom 2>/dev/null || true)
+    [ -n "$src" ] && lsblk -no PKNAME "$src" 2>/dev/null | head -1
+}
+
+part() {  # part /dev/sda 3 -> /dev/sda3 ; part /dev/nvme0n1 3 -> /dev/nvme0n1p3
+    case "$1" in *[0-9]) echo "${1}p$2" ;; *) echo "$1$2" ;; esac
+}
+
+valid_hostname() { [[ "$1" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]]; }
+valid_user()     { [[ "$1" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] && ! getent passwd "$1" >/dev/null; }
+
+# ------------------------------------------------------------------ gather
+gather_auto() {
+    DISK=$(cmdline_arg disk || true)
+    HOSTNAME_=$(cmdline_arg hostname || echo "$HOSTNAME_")
+    USERNAME_=$(cmdline_arg user || echo "$USERNAME_")
+    PASSWORD=$(cmdline_arg password || true)
+    PASSWORD_HASH=$(cmdline_arg password_hash || true)
+    TIMEZONE=$(cmdline_arg timezone || echo "$TIMEZONE")
+    SWAP=$(cmdline_arg swap || echo "$SWAP")
+    FINISH=$(cmdline_arg finish || echo "$FINISH")
+    [ -b "$DISK" ] || die "mintinstall.disk='$DISK' is not a block device"
+    [ -n "$PASSWORD$PASSWORD_HASH" ] || die "mintinstall.password or mintinstall.password_hash is required"
+    valid_hostname "$HOSTNAME_" || die "invalid hostname '$HOSTNAME_'"
+    valid_user "$USERNAME_" || die "invalid or reserved username '$USERNAME_'"
+}
+
+gather_interactive() {
+    ask --yesno "Welcome to Linux Mint Server.\n\nThis installs a headless Linux Mint system (no graphical desktop) with SSH, a firewall and Mint's update tools.\n\nContinue?" 14 70 || exit 0
+
+    local skip items=() name size model
+    skip=$(medium_disk || true)
+    while read -r name size model; do
+        [ "$(basename "$name")" = "$skip" ] && continue
+        items+=("$name" "$size ${model:-disk}")
+    done < <(lsblk -dnpo NAME,SIZE,MODEL -e 1,7,11)
+    [ ${#items[@]} -gt 0 ] || die "No installable disks found."
+    DISK=$(ask --menu "Select the disk to install to.\n\nALL DATA ON IT WILL BE ERASED." 18 70 8 "${items[@]}") || exit 0
+
+    while :; do
+        HOSTNAME_=$(ask --inputbox "Hostname:" 10 60 "$HOSTNAME_") || exit 0
+        valid_hostname "$HOSTNAME_" && break
+        ask --msgbox "Invalid hostname." 8 40
+    done
+    while :; do
+        USERNAME_=$(ask --inputbox "Administrator username (will have sudo):" 10 60 "$USERNAME_") || exit 0
+        valid_user "$USERNAME_" && break
+        ask --msgbox "Invalid or reserved username. Use lowercase letters, digits, '-' and '_'." 9 60
+    done
+    local p1 p2
+    while :; do
+        p1=$(ask --passwordbox "Password for $USERNAME_:" 10 60) || exit 0
+        p2=$(ask --passwordbox "Confirm password:" 10 60) || exit 0
+        [ -n "$p1" ] && [ "$p1" = "$p2" ] && break
+        ask --msgbox "Passwords are empty or do not match." 8 50
+    done
+    PASSWORD=$p1
+    SSHKEY=$(ask --inputbox "Optional: paste an SSH public key for $USERNAME_ (leave empty to skip):" 10 76 "") || exit 0
+    while :; do
+        TIMEZONE=$(ask --inputbox "Timezone (e.g. Etc/UTC, Europe/London, America/New_York):" 10 60 "$TIMEZONE") || exit 0
+        [ -f "/usr/share/zoneinfo/$TIMEZONE" ] && break
+        ask --msgbox "Unknown timezone." 8 40
+    done
+    ask --yesno "Ready to install:\n\n  Disk:      $DISK  (WILL BE ERASED)\n  Hostname:  $HOSTNAME_\n  User:      $USERNAME_\n  Timezone:  $TIMEZONE\n\nProceed?" 16 70 || exit 0
+}
+
+# ------------------------------------------------------------------ install
+MOUNTED=()
+cleanup_mounts() {
+    local i
+    for (( i=${#MOUNTED[@]}-1; i>=0; i-- )); do umount -l "${MOUNTED[$i]}" 2>/dev/null || true; done
+    MOUNTED=()
+}
+trap cleanup_mounts EXIT
+
+in_target() { chroot "$TARGET" /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root \
+    LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive "$@"; }
+
+do_install() {
+    local sq efi_mode=0
+    sq=$(find_squashfs) || true
+    [ -n "$sq" ] || die "Cannot find casper/filesystem.squashfs on the live medium."
+    [ -d /sys/firmware/efi ] && efi_mode=1
+
+    msg "Partitioning $DISK (GPT: BIOS boot + EFI + root)"
+    swapoff -a 2>/dev/null || true
+    umount -R "$TARGET" 2>/dev/null || true
+    wipefs -a "$DISK" >>"$LOG" 2>&1
+    sgdisk --zap-all "$DISK" >>"$LOG" 2>&1
+    sgdisk -n1:0:+1M   -t1:ef02 -c1:bios-boot \
+           -n2:0:+512M -t2:ef00 -c2:EFI \
+           -n3:0:0     -t3:8304 -c3:mint-root "$DISK" >>"$LOG" 2>&1
+    partprobe "$DISK" 2>/dev/null || true
+    udevadm settle
+    local p_efi p_root
+    p_efi=$(part "$DISK" 2); p_root=$(part "$DISK" 3)
+    for _ in $(seq 20); do [ -b "$p_root" ] && break; sleep 0.5; done
+    [ -b "$p_root" ] || die "Partition $p_root did not appear."
+
+    msg "Creating filesystems"
+    mkfs.vfat -F32 -n EFI "$p_efi" >>"$LOG" 2>&1
+    mkfs.ext4 -F -q -L mint-root "$p_root" >>"$LOG" 2>&1
+
+    mkdir -p "$TARGET"
+    mount "$p_root" "$TARGET";                       MOUNTED+=("$TARGET")
+    mkdir -p "$TARGET/boot/efi"
+    mount "$p_efi" "$TARGET/boot/efi";               MOUNTED+=("$TARGET/boot/efi")
+
+    msg "Copying system from $sq (this takes a few minutes)"
+    if [ "$AUTO" = 1 ]; then
+        unsquashfs -f -q -n -d "$TARGET" "$sq" >>"$LOG" 2>&1
+    else
+        unsquashfs -f -d "$TARGET" "$sq" | tee -a "$LOG" | tail -n 2
+    fi
+
+    local m
+    for m in dev dev/pts proc sys run; do
+        mount --bind "/$m" "$TARGET/$m";              MOUNTED+=("$TARGET/$m")
+    done
+    if [ "$efi_mode" = 1 ]; then
+        mount --bind /sys/firmware/efi/efivars "$TARGET/sys/firmware/efi/efivars" 2>/dev/null \
+            && MOUNTED+=("$TARGET/sys/firmware/efi/efivars")
+    fi
+
+    msg "Removing live-session components"
+    local f
+    while read -r f; do
+        [ -n "$f" ] && rm -f "$TARGET$f"
+    done < "$DATA/live-files"
+    rm -f "$TARGET/etc/systemd/system/multi-user.target.wants/mint-server-autoinstall.service"
+    rm -f "$TARGET/etc/casper.conf"
+    rmdir "$TARGET/etc/systemd/system/getty@tty1.service.d" \
+          "$TARGET/etc/systemd/system/serial-getty@ttyS0.service.d" 2>/dev/null || true
+    # shellcheck disable=SC2046
+    in_target apt-get -y purge $(cat "$DATA/live-packages") >>"$LOG" 2>&1
+    in_target apt-get -y --purge autoremove >>"$LOG" 2>&1
+    rm -rf "$TARGET$DATA"
+
+    msg "Configuring system"
+    local uuid_root uuid_efi
+    uuid_root=$(blkid -s UUID -o value "$p_root")
+    uuid_efi=$(blkid -s UUID -o value "$p_efi")
+    cat > "$TARGET/etc/fstab" <<EOF
+# <file system>                           <mount point> <type> <options>          <dump> <pass>
+UUID=$uuid_root  /           ext4  errors=remount-ro  0  1
+UUID=$uuid_efi                            /boot/efi   vfat  umask=0077         0  1
+EOF
+    if [ "$SWAP" != 0 ]; then
+        fallocate -l "$SWAP" "$TARGET/swap.img"
+        chmod 600 "$TARGET/swap.img"
+        mkswap "$TARGET/swap.img" >>"$LOG"
+        echo "/swap.img  none  swap  sw  0  0" >> "$TARGET/etc/fstab"
+    fi
+
+    echo "$HOSTNAME_" > "$TARGET/etc/hostname"
+    sed -i "s/^127\.0\.1\.1.*/127.0.1.1 $HOSTNAME_/" "$TARGET/etc/hosts"
+
+    mkdir -p "$TARGET/etc/netplan"
+    cat > "$TARGET/etc/netplan/50-mint-server.yaml" <<'EOF'
+# Created by the Linux Mint Server installer: DHCP on every wired interface.
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    wired:
+      match:
+        name: "e*"
+      dhcp4: true
+      dhcp6: true
+      optional: true
+EOF
+    chmod 600 "$TARGET/etc/netplan/50-mint-server.yaml"
+
+    ln -sf "/usr/share/zoneinfo/$TIMEZONE" "$TARGET/etc/localtime"
+    echo "$TIMEZONE" > "$TARGET/etc/timezone"
+
+    msg "Creating user $USERNAME_"
+    in_target useradd -m -s /bin/bash -c "$USERNAME_" -G adm,sudo,systemd-journal "$USERNAME_"
+    if [ -n "$PASSWORD_HASH" ]; then
+        printf '%s:%s\n' "$USERNAME_" "$PASSWORD_HASH" | in_target chpasswd -e
+    else
+        printf '%s:%s\n' "$USERNAME_" "$PASSWORD" | in_target chpasswd
+    fi
+    in_target passwd -l root >/dev/null
+    if [ -n "$SSHKEY" ]; then
+        install -d -m 700 "$TARGET/home/$USERNAME_/.ssh"
+        echo "$SSHKEY" > "$TARGET/home/$USERNAME_/.ssh/authorized_keys"
+        chmod 600 "$TARGET/home/$USERNAME_/.ssh/authorized_keys"
+        in_target chown -R "$USERNAME_:$USERNAME_" "/home/$USERNAME_/.ssh"
+    fi
+
+    in_target ssh-keygen -A >>"$LOG" 2>&1
+    : > "$TARGET/etc/machine-id"
+
+    msg "Installing bootloader (BIOS + UEFI)"
+    in_target grub-install --target=i386-pc "$DISK" >>"$LOG" 2>&1 \
+        || die "grub-install (BIOS) failed"
+    if [ "$efi_mode" = 1 ]; then
+        in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+            --bootloader-id=ubuntu --uefi-secure-boot --force-extra-removable >>"$LOG" 2>&1 \
+            || die "grub-install (UEFI) failed"
+    else
+        # Still make the disk UEFI-bootable via the removable-media path.
+        in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+            --bootloader-id=ubuntu --uefi-secure-boot --removable --no-nvram >>"$LOG" 2>&1 \
+            || die "grub-install (UEFI removable) failed"
+    fi
+    in_target update-initramfs -u -k all >>"$LOG" 2>&1
+    in_target update-grub >>"$LOG" 2>&1 || die "update-grub failed"
+
+    cp "$LOG" "$TARGET/var/log/mint-server-install.log"
+    chmod 600 "$TARGET/var/log/mint-server-install.log"
+    sync
+    cleanup_mounts
+    msg "Installation complete."
+}
+
+# ------------------------------------------------------------------ main
+if [ "${1:-}" = "--auto" ]; then
+    AUTO=1
+    gather_auto
+else
+    gather_interactive
+fi
+
+# The installer UI runs on every console (tty1 and serial); only the first
+# one to confirm gets to install.
+exec 9>"$LOCK"
+if ! flock -n 9; then
+    busy="An installation is already running on another console."
+    if [ "$AUTO" = 1 ]; then echo "$busy"; else whiptail --title "$TITLE" --msgbox "$busy" 8 64; fi
+    exit 1
+fi
+
+: > "$LOG"
+do_install
+
+if [ "$AUTO" = 1 ]; then
+    case "$FINISH" in
+        poweroff) systemctl poweroff ;;
+        shell)    ;;
+        *)        systemctl reboot ;;
+    esac
+else
+    if ask --yesno "Installation complete.\n\nRemove the installation medium and reboot now?" 10 60; then
+        systemctl reboot
+    fi
+fi

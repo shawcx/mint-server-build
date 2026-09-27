@@ -1,0 +1,7 @@
+# Linux Mint Server: keep display servers, display managers and desktop
+# metapackages from being pulled in as dependencies.
+# Delete this file if you deliberately want to install a graphical desktop.
+
+Package: xserver-xorg-core xwayland lightdm gdm3 sddm slick-greeter mint-meta-cinnamon mint-meta-mate mint-meta-xfce mint-meta-core ubuntu-desktop ubuntu-desktop-minimal
+Pin: release a=*
+Pin-Priority: -10

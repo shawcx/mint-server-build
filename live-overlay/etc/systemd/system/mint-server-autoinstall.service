@@ -1,0 +1,15 @@
+[Unit]
+Description=Linux Mint Server unattended installation
+ConditionKernelCommandLine=mintinstall.auto
+After=local-fs.target systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/mint-server-install --auto
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target

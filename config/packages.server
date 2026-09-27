@@ -1,0 +1,81 @@
+# Packages installed on the server (and present in the live image).
+# One per line; '#' comments allowed. Installed with --no-install-recommends.
+
+# --- base system ---
+ubuntu-minimal
+ubuntu-standard
+systemd-resolved
+systemd-timesyncd
+locales
+tzdata
+sudo
+bash-completion
+command-not-found
+man-db
+less
+nano
+vim
+curl
+wget
+ca-certificates
+gnupg
+rsync
+htop
+tmux
+lsof
+openssl
+dbus
+polkitd
+apparmor
+lvm2
+cryptsetup
+btrfs-progs
+xfsprogs
+dosfstools
+e2fsprogs
+parted
+gdisk
+pciutils
+usbutils
+linux-firmware
+intel-microcode
+amd64-microcode
+
+# --- boot ---
+grub-efi-amd64
+grub-efi-amd64-signed
+grub-pc-bin
+shim-signed
+efibootmgr
+initramfs-tools
+zstd
+
+# --- networking ---
+netplan.io
+iproute2
+iputils-ping
+ethtool
+openssh-server
+ufw
+unattended-upgrades
+needrestart
+
+# --- Linux Mint ---
+base-files
+linuxmint-keyring
+mint-mirrors
+mint-upgrade-info
+inxi
+timeshift
+python3-apt
+python3-gi
+gir1.2-glib-2.0
+dconf-gsettings-backend
+distro-info-data
+lsb-release
+psmisc
+aptitude
+
+# --- installer runtime (kept: small and useful) ---
+whiptail
+squashfs-tools
