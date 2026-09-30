@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the Linux Mint Server ISO inside a privileged Docker container
+# Build the Mint Server (unofficial) ISO inside a privileged Docker container
 # (debootstrap/chroot need mounts). Output lands in ./out/.
 set -euo pipefail
 cd "$(dirname "$0")"

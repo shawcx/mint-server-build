@@ -1,4 +1,4 @@
-# Linux Mint Server: keep display servers, display managers and desktop
+# Mint Server (unofficial): keep display servers, display managers and desktop
 # metapackages from being pulled in as dependencies.
 # Delete this file if you deliberately want to install a graphical desktop.
 

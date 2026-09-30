@@ -1,5 +1,5 @@
 [Unit]
-Description=Linux Mint Server unattended installation
+Description=Mint Server (unofficial) unattended installation
 ConditionKernelCommandLine=mintinstall.auto
 After=local-fs.target systemd-udev-settle.service
 Wants=systemd-udev-settle.service

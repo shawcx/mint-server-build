@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""End-to-end test of the Linux Mint Server ISO in QEMU/KVM.
+"""End-to-end test of the Mint Server (unofficial) ISO in QEMU/KVM.
 
   1. Boot the ISO through its own GRUB (BIOS and UEFI) and check the
      interactive installer comes up on the serial console.
   2. Unattended install (UEFI) onto a blank virtio disk via mintinstall.* args.
   3. Boot the installed disk under UEFI and under BIOS, log in over serial
-     and assert the system is a headless Linux Mint server.
+     and assert the system is a headless Mint-based server.
 
-Usage: tests/qemu-test.py out/linuxmint-22.3-server-amd64.iso
+Usage: tests/qemu-test.py out/mint-server-unofficial-22.3-amd64.iso
 Requires: qemu-system-x86_64, qemu-img, 7z, OVMF, python3-pexpect, /dev/kvm.
 """
 import os
@@ -63,9 +63,9 @@ def test_iso_boots(uefi):
     shutil.copy("/usr/share/OVMF/OVMF_VARS_4M.fd", OVMF_VARS)
     c = qemu(f"iso-{fw}", uefi, ["-cdrom", ISO, "-boot", "d"])
     try:
-        c.expect("Install Linux Mint", timeout=120)
+        c.expect("Install Mint Server \\(unofficial\\)", timeout=120)
         check("GRUB menu shown", True)
-        c.expect("Welcome to Linux Mint Server", timeout=300)
+        c.expect("Welcome to Mint Server \\(unofficial\\)", timeout=300)
         check("installer launched on serial console", True)
     except (pexpect.TIMEOUT, pexpect.EOF) as e:
         check(f"ISO boot ({fw})", False, type(e).__name__)
@@ -135,7 +135,7 @@ def test_installed(uefi):
         rc, out = run(c, "grep ^PRETTY_NAME /etc/os-release")
         check("os-release is Linux Mint", "Linux Mint 22.3" in out, out)
         rc, out = run(c, "grep EDITION /etc/linuxmint/info")
-        check("edition is Server", '"Server"' in out, out)
+        check("edition is Server (unofficial)", '"Server (unofficial)"' in out, out)
         rc, out = run(c, "dpkg-query -W -f '${db:Status-Abbrev} ${Package}\\n' | "
                          "awk '$1~/^i/{print $2}' | grep -E '^(xserver-xorg-core|xwayland|lightdm|gdm3|sddm|snapd|casper|cinnamon)$' || echo none")
         check("no X server / DM / snapd / casper", out == "none", out)

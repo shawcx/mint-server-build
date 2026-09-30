@@ -1,4 +1,4 @@
-# Build environment for the Linux Mint Server ISO.
+# Build environment for the Mint Server (unofficial) ISO.
 FROM ubuntu:24.04
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \

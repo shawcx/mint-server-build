@@ -1,9 +1,22 @@
-# Linux Mint Server
+# Mint Server (unofficial)
 
-A headless "Server" edition of Linux Mint 22.3 (Zena, Ubuntu 24.04 base).
-It builds a bootable hybrid BIOS/UEFI installer ISO. The installed system
-boots to `multi-user.target`: no X server, Wayland compositor, display manager
-or desktop. It keeps the Linux Mint parts that make sense on a server.
+> **This is an independent, community build. It is not produced, endorsed or
+> supported by the Linux Mint project or Clement Lefebvre.** "Linux Mint" is a
+> trademark of the Linux Mint project. "Linux" is a registered trademark of
+> Linus Torvalds. Please do not report problems with this build to the Linux
+> Mint forums or bug trackers; report them at
+> <https://github.com/shawcx/mint-server-build/issues> instead.
+
+A headless, server-oriented build based on Linux Mint 22.3 (Zena, Ubuntu 24.04
+base). It builds a bootable hybrid BIOS/UEFI installer ISO. The installed
+system boots to `multi-user.target`: no X server, Wayland compositor, display
+manager or desktop. It keeps the Linux Mint parts that make sense on a server.
+
+Everything user-facing (GRUB, ISO label, installer, MOTD, `EDITION` in
+`/etc/linuxmint/info`) says "Mint Server (unofficial)" so nobody mistakes it
+for an official edition. `/etc/os-release` is Mint's own `base-files` and
+still reports "Linux Mint 22.3", because `mintupdate-cli` and other Mint
+tools key off it.
 
 ## What you get
 
@@ -11,7 +24,7 @@ or desktop. It keeps the Linux Mint parts that make sense on a server.
 |---|---|
 | Base | Ubuntu noble + `packages.linuxmint.com zena`, with Mint's pinning (`o=linuxmint,c=upstream` at 700) so Mint's `base-files` etc. win |
 | Mint tools | Mint `apt` wrapper, `mintupdate-cli`, `mintupdate-automation` (+ timers), `timeshift`, `inxi`, `mint-mirrors`, `mint-upgrade-info`, `linuxmint-keyring` |
-| Branding | `/etc/os-release` = Linux Mint 22.3, `/etc/linuxmint/info` `EDITION="Server"`, GRUB entry "Linux Mint 22.3 Server", Mint MOTD help text (Ubuntu motd-news off) |
+| Identity | `/etc/os-release` = Linux Mint 22.3 (from Mint's `base-files`), `/etc/linuxmint/info` `EDITION="Server (unofficial)"`, GRUB entry "Mint Server (unofficial) 22.3", MOTD help text stating the build is unofficial (Ubuntu motd-news off) |
 | No GUI | `multi-user.target` default, `graphical.target` masked, APT pins block X/Wayland servers, display managers and desktop metapackages (`mint-server-no-gui.pref`), and the build fails if any turn up (`config/forbidden.list`) |
 | No snap | Mint's `nosnap.pref` |
 | Server defaults | OpenSSH (unique host keys per install), `ufw` on (deny in, allow SSH), `unattended-upgrades`, netplan + systemd-networkd (DHCP on all wired NICs), `needrestart`, swap file, serial console on `ttyS0` + `tty0` |
@@ -43,7 +56,7 @@ needs no sudo or extra tools.
 
 ```sh
 ./build.sh
-# -> out/linuxmint-22.3-server-amd64.iso (+ .sha256, .manifest, mint-server-base_*.deb)
+# -> out/mint-server-unofficial-22.3-amd64.iso (+ .sha256, .manifest, mint-server-base_*.deb)
 ```
 
 Tweak `config/build.conf` (mirrors, kernel flavour, masking, ISO name) and
@@ -86,13 +99,13 @@ apt search foo                               # Mint's apt wrapper
 ## Testing
 
 ```sh
-tests/qemu-test.py out/linuxmint-22.3-server-amd64.iso
+tests/qemu-test.py out/mint-server-unofficial-22.3-amd64.iso
 ```
 
 Boots the ISO under BIOS and UEFI, does an unattended UEFI install into a
 qcow2 disk, then boots the result under UEFI **and** BIOS and checks the
 default target, masked `graphical.target`, absence of X/DM/snap/casper,
-Mint branding, repos, `apt` wrapper, `mintupdate-cli`, ufw, ssh, DHCP and more.
+unofficial edition identity, repos, `apt` wrapper, `mintupdate-cli`, ufw, ssh, DHCP and more.
 Needs KVM, OVMF, `7z` and `python3-pexpect`. Serial logs go to `out/test-logs/`.
 
 ## Layout
@@ -108,3 +121,20 @@ live-overlay/                    live-session only: installer, autologin, autoin
 iso/grub.cfg                     ISO boot menu
 tests/qemu-test.py               end-to-end QEMU test
 ```
+
+## Credits and license
+
+The build scripts, installer, package lists and `mint-server-base` packaging
+in this repository are copyright 2026 Matthew Shaw and released under the
+GNU General Public License, version 3 or later. See `LICENSE`.
+
+The operating system it produces is assembled from unmodified Ubuntu and
+Linux Mint packages, fetched at build time from their official repositories.
+`mint-server-base` repackages the command-line parts of Mint's `mintsystem`
+(GPL-2+) and `mintupdate` (GPL-3+), both copyright Clement Lefebvre; the
+per-file breakdown is in
+`packages/mint-server-base/root/usr/share/doc/mint-server-base/copyright`
+and ships in the installed system.
+
+Linux Mint is at <https://linuxmint.com>. This project is not affiliated
+with it.

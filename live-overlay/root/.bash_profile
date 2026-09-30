@@ -6,4 +6,4 @@ if ! grep -qwE 'mintinstall=off|mintinstall\.auto' /proc/cmdline; then
     esac
 fi
 echo
-echo "Linux Mint Server live session. Run 'mint-server-install' to install."
+echo "Mint Server (unofficial) live session. Run 'mint-server-install' to install."

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds the Linux Mint Server live/installer ISO. Runs as root inside the
+# Builds the Mint Server (unofficial) live/installer ISO. Runs as root inside the
 # privileged build container started by ./build.sh.
 #
 #   work/chroot   the server root filesystem (+ casper for the live session)
@@ -83,7 +83,7 @@ cp "$CHROOT/etc/resolv.conf.build" "$CHROOT/etc/resolv.conf"
 log "Configuring Linux Mint + Ubuntu repositories"
 rm -f "$CHROOT/etc/apt/sources.list"
 cat > "$CHROOT/etc/apt/sources.list.d/official-package-repositories.list" <<EOF
-# Linux Mint ${MINT_RELEASE} Server
+# Mint Server (unofficial) ${MINT_RELEASE}
 
 deb ${MINT_MIRROR} ${MINT_CODENAME} main upstream import backport #id:linuxmint_main
 
@@ -234,7 +234,7 @@ mksquashfs "$CHROOT" "$ISO/casper/filesystem.squashfs" \
     -e boot/efi -wildcards -e 'proc/*' -e 'sys/*' -e 'dev/*' -e 'run/*'
 du -sx --block-size=1 "$CHROOT" | cut -f1 > "$ISO/casper/filesystem.size"
 
-echo "Linux Mint ${MINT_RELEASE} \"${MINT_CODENAME_PRETTY}\" - Server ${ARCH} ($(date -u +%Y%m%d))" > "$ISO/.disk/info"
+echo "Mint Server (unofficial) ${MINT_RELEASE} \"${MINT_CODENAME_PRETTY}\" ${ARCH} ($(date -u +%Y%m%d))" > "$ISO/.disk/info"
 sed -e "s/@MINT_RELEASE@/$MINT_RELEASE/g" "$TOP/iso/grub.cfg" > "$ISO/boot/grub/grub.cfg"
 
 log "Building hybrid BIOS/UEFI ISO"

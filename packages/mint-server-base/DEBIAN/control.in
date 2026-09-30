@@ -1,17 +1,19 @@
 Package: mint-server-base
 Version: @VERSION@
 Architecture: all
-Maintainer: Linux Mint Server build <root@localhost>
+Maintainer: Mint Server (unofficial) build <root@localhost>
 Priority: optional
 Section: admin
 Depends: python3, perl, apt, aptitude, python3-apt, python3-gi, gir1.2-glib-2.0, dconf-gsettings-backend | gsettings-backend, linuxmint-keyring, mint-mirrors, mint-upgrade-info, lsb-release, distro-info-data, psmisc, systemd
 Provides: mint-info
 Conflicts: mintsystem, mintupdate, mint-info-cinnamon, mint-info-mate, mint-info-xfce
 Replaces: mintsystem, mintupdate, mint-info-cinnamon, mint-info-mate, mint-info-xfce
-Description: Linux Mint Server base configuration and CLI tools
- Headless subset of Linux Mint's system tools for the Server edition:
+Description: Mint Server (unofficial) base configuration and CLI tools
+ Headless subset of Linux Mint's system tools for the unofficial Server
+ edition. This is an independent community package, not a product of the
+ Linux Mint project:
   - Mint APT wrapper (/usr/local/bin/apt) and repository pinning
   - mintupdate-cli and mintupdate-automation (from mintupdate @MINTUPDATE_VERSION@)
   - apt helpers from mintsystem @MINTSYSTEM_VERSION@
-  - /etc/linuxmint/info for the Server edition, GRUB and MOTD branding
+  - /etc/linuxmint/info for the unofficial Server edition, GRUB and MOTD text
   - snapd and graphical stack blocked from being pulled in by APT

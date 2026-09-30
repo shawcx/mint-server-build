@@ -1,9 +1,9 @@
 #!/bin/sh
 . /etc/linuxmint/info 2>/dev/null
 printf '\n'
-printf ' * Linux Mint %s Server (%s)\n' "${RELEASE}" "${CODENAME}"
+printf ' * Mint Server (unofficial) %s (%s)\n' "${RELEASE}" "${CODENAME}"
+printf ' * Independent community build, not supported by the Linux Mint project.\n'
 printf ' * Updates:       sudo mintupdate-cli upgrade\n'
 printf ' * Auto-updates:  sudo mintupdate-automation upgrade enable\n'
 printf ' * Snapshots:     sudo timeshift --create\n'
 printf ' * System info:   inxi -Fz\n'
-printf ' * Docs:          https://linuxmint.com/documentation.php\n'

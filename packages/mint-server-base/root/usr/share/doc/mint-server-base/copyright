@@ -1,0 +1,54 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: mint-server-base
+Source: https://github.com/shawcx/mint-server-build
+Comment: Independent community package. Not produced, endorsed or supported by
+ the Linux Mint project. "Linux Mint" is a trademark of the Linux Mint project.
+
+Files: *
+Copyright: 2026 Matthew Shaw
+License: GPL-3.0-or-later
+
+Files: usr/local/bin/apt
+       usr/local/bin/highlight-mint
+       usr/lib/linuxmint/mintsystem/*
+       usr/share/linuxmint/mintsystem/*
+       etc/bash_completion.d/apt-linux-mint
+       etc/apt/apt.conf.d/90mintsystem
+       etc/apt/preferences.d/official-extra-repositories.pref
+       etc/apt/preferences.d/official-package-repositories.pref
+       etc/apt/preferences.d/nosnap.pref
+       etc/sudoers.d/0pwfeedback
+Copyright: 2008-2026 Clement Lefebvre <root@linuxmint.com>
+Comment: Taken unmodified from the Linux Mint "mintsystem" package.
+License: GPL-2.0-or-later
+
+Files: usr/bin/mintupdate-cli
+       usr/bin/mintupdate-automation
+       usr/lib/linuxmint/mintUpdate/*
+       usr/share/linuxmint/mintupdate/*
+       usr/share/glib-2.0/schemas/com.linuxmint.updates.gschema.xml
+       usr/share/python-apt/templates/LinuxMint.info
+       usr/share/man/man8/mintupdate-cli.8.gz
+       usr/lib/systemd/system/mintupdate-automation-*
+       etc/logrotate.d/mintupdate
+Copyright: 2007-2026 Clement Lefebvre <root@linuxmint.com>
+Comment: Taken unmodified from the Linux Mint "mintupdate" package.
+License: GPL-3.0-or-later
+
+License: GPL-2.0-or-later
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 2 can be found in "/usr/share/common-licenses/GPL-2".
+
+License: GPL-3.0-or-later
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ version 3 can be found in "/usr/share/common-licenses/GPL-3".

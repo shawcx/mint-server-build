@@ -1,5 +1,5 @@
 #!/bin/bash
-# Linux Mint Server installer (text mode).
+# Mint Server (unofficial) installer (text mode).
 #
 # Interactive:  mint-server-install
 # Unattended:   mint-server-install --auto   (reads mintinstall.* from the kernel
@@ -15,7 +15,7 @@
 #   mintinstall.finish=poweroff      reboot (default) | poweroff | shell
 set -euo pipefail
 
-TITLE="Linux Mint Server installer"
+TITLE="Mint Server (unofficial) installer"
 TARGET=/target
 LOCK=/run/mint-server-install.lock
 LOG=/var/log/mint-server-install.log
@@ -92,7 +92,7 @@ gather_auto() {
 }
 
 gather_interactive() {
-    ask --yesno "Welcome to Linux Mint Server.\n\nThis installs a headless Linux Mint system (no graphical desktop) with SSH, a firewall and Mint's update tools.\n\nContinue?" 14 70 || exit 0
+    ask --yesno "Welcome to Mint Server (unofficial).\n\nThis is an independent community build, not a product of the Linux Mint project. It installs a headless system built from Linux Mint and Ubuntu packages (no graphical desktop) with SSH, a firewall and Mint's update tools.\n\nContinue?" 14 70 || exit 0
 
     local skip items=() name size model
     skip=$(medium_disk || true)
@@ -223,7 +223,7 @@ EOF
 
     mkdir -p "$TARGET/etc/netplan"
     cat > "$TARGET/etc/netplan/50-mint-server.yaml" <<'EOF'
-# Created by the Linux Mint Server installer: DHCP on every wired interface.
+# Created by the Mint Server (unofficial) installer: DHCP on every wired interface.
 network:
   version: 2
   renderer: networkd

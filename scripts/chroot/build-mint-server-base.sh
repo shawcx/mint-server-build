@@ -76,25 +76,25 @@ for t in "$PKG"/usr/lib/systemd/system/mintupdate-automation-*.timer; do
     ln -s "../$(basename "$t")" "$PKG/usr/lib/systemd/system/timers.target.wants/$(basename "$t")"
 done
 
-# --- Server edition identity ---
+# --- Server edition identity (clearly marked unofficial: not a Linux Mint product) ---
 mkdir -p "$PKG/etc/linuxmint"
 cat > "$PKG/etc/linuxmint/info" <<EOF
 RELEASE=${MINT_RELEASE}
 CODENAME=${MINT_CODENAME}
-EDITION="Server"
-DESCRIPTION="Linux Mint ${MINT_RELEASE} ${MINT_CODENAME_PRETTY} Server"
+EDITION="Server (unofficial)"
+DESCRIPTION="Mint Server (unofficial) ${MINT_RELEASE} ${MINT_CODENAME_PRETTY}"
 DESKTOP=None
 TOOLKIT=None
 NEW_FEATURES_URL=https://www.linuxmint.com/rel_${MINT_CODENAME}_whatsnew.php
 RELEASE_NOTES_URL=https://www.linuxmint.com/rel_${MINT_CODENAME}.php
 USER_GUIDE_URL=https://www.linuxmint.com/documentation.php
-GRUB_TITLE=Linux Mint ${MINT_RELEASE} Server
+GRUB_TITLE="Mint Server (unofficial) ${MINT_RELEASE}"
 EOF
 
 mkdir -p "$PKG/etc/default/grub.d"
 cat > "$PKG/etc/default/grub.d/50_linuxmint-server.cfg" <<EOF
-# Linux Mint Server: text boot, visible kernel messages, serial-friendly.
-GRUB_DISTRIBUTOR="Linux Mint ${MINT_RELEASE} Server"
+# Mint Server (unofficial): text boot, visible kernel messages, serial-friendly.
+GRUB_DISTRIBUTOR="Mint Server (unofficial) ${MINT_RELEASE}"
 GRUB_CMDLINE_LINUX_DEFAULT=""
 GRUB_TIMEOUT_STYLE=menu
 GRUB_TIMEOUT=5
