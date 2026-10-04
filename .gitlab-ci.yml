@@ -1,0 +1,54 @@
+# Builds the ISO on the amd64 runner (tag: amd64, docker executor).
+# build.sh drives the host's Docker daemon and bind-mounts the checkout, so the
+# runner must share the host socket and a build dir at the same path. In the
+# runner's config.toml, under [runners.docker]:
+#   volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock", "/srv/mint-server:/srv/mint-server"]
+# Each job syncs the checkout to $BUILD_DIR, keeping work/ (apt and debootstrap
+# caches) between pipelines.
+#
+# Runs on pushes to main, schedules, and manual runs (web UI or `glab ci run`).
+# The ISO goes to the project's generic package registry (artifacts are too small).
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE =~ /^(web|api|schedule)$/
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+variables:
+  GIT_DEPTH: "1"
+  BUILD_DIR: /srv/mint-server/src
+
+iso:
+  tags: [amd64]
+  image: docker:cli
+  # One job at a time uses the shared build dir.
+  resource_group: mint-server-build
+  timeout: 3h
+  before_script:
+    - apk add -q bash curl rsync
+    - test -S /var/run/docker.sock || { echo "docker.sock not mounted into the job; see top of .gitlab-ci.yml"; exit 1; }
+    - mkdir -p "$BUILD_DIR"
+    - rsync -a --delete --exclude /work --exclude /out "$CI_PROJECT_DIR/" "$BUILD_DIR/"
+    # The host daemon must see $BUILD_DIR at the same path as this job does.
+    - echo "$CI_JOB_ID" > "$BUILD_DIR/.mount-check"
+    - |
+      [ "$(docker run --rm -v "$BUILD_DIR:/x:ro" alpine cat /x/.mount-check)" = "$CI_JOB_ID" ] \
+        || { echo "$BUILD_DIR is not the host's $BUILD_DIR; see top of .gitlab-ci.yml"; exit 1; }
+  script:
+    - cd "$BUILD_DIR"
+    - rm -rf out
+    - ./build.sh
+    - . ./config/build.conf
+    - VERSION="${MINT_RELEASE}-${CI_PIPELINE_IID}"
+    - URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/mint-server-unofficial/${VERSION}"
+    - |
+      for f in out/*.iso out/*.sha256 out/*.manifest out/*.deb; do
+        [ -e "$f" ] || continue
+        curl -fsS --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file "$f" "$URL/$(basename "$f")"
+        echo
+      done
+    - mkdir -p "$CI_PROJECT_DIR/out" && cp out/*.sha256 out/*.manifest out/*.deb "$CI_PROJECT_DIR/out/"
+    - 'echo "ISO: $URL/$ISO_NAME"'
+  artifacts:
+    expire_in: 3 months
+    paths: [out/]

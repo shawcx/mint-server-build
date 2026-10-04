@@ -63,6 +63,10 @@ Tweak `config/build.conf` (mirrors, kernel flavour, masking, ISO name) and
 `config/packages.server` (package set). APT and debootstrap downloads are
 cached in `work/cache/`, so rebuilds are fast.
 
+### CI
+
+`.gitlab-ci.yml` builds the ISO on the `amd64` GitLab runner (Docker executor) by running `build.sh` against the host's Docker daemon. The runner's `config.toml` needs `volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock", "/srv/mint-server:/srv/mint-server"]` under `[runners.docker]`. `work/` persists in `/srv/mint-server/src` on the runner host, so its apt and debootstrap caches carry over between runs. ISOs are uploaded to the project's generic package registry as `mint-server-unofficial/22.3-<pipeline iid>`. The QEMU test isn't run in CI because it needs KVM.
+
 ## Installing
 
 Boot the ISO. The installer starts automatically on `tty1` and on the serial
