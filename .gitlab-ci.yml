@@ -7,7 +7,8 @@
 # caches) between pipelines.
 #
 # Runs on pushes to main, schedules, and manual runs (web UI or `glab ci run`).
-# The ISO goes to the project's generic package registry (artifacts are too small).
+# The ISO goes to the project's generic package registry (artifacts are too small),
+# and builds of main get a tagged release linking to it.
 
 workflow:
   rules:
@@ -18,7 +19,10 @@ variables:
   GIT_DEPTH: "1"
   BUILD_DIR: /srv/mint-server/src
 
+stages: [build, release]
+
 iso:
+  stage: build
   tags: [amd64]
   image: docker:cli
   # One job at a time uses the shared build dir.
@@ -49,6 +53,51 @@ iso:
       done
     - mkdir -p "$CI_PROJECT_DIR/out" && cp out/*.sha256 out/*.manifest out/*.deb "$CI_PROJECT_DIR/out/"
     - 'echo "ISO: $URL/$ISO_NAME"'
+    - |
+      {
+        echo "VERSION=$VERSION"
+        echo "PKG_URL=$URL"
+        echo "ISO_NAME=$ISO_NAME"
+        echo "MANIFEST_NAME=${ISO_NAME%.iso}.manifest"
+        echo "DEB_NAME=$(basename out/mint-server-base_*.deb)"
+        echo "ISO_SHA256=$(cut -d' ' -f1 "out/$ISO_NAME.sha256")"
+      } > "$CI_PROJECT_DIR/release.env"
   artifacts:
     expire_in: 3 months
     paths: [out/]
+    reports:
+      dotenv: release.env
+
+release:
+  stage: release
+  tags: [amd64]
+  image: registry.gitlab.com/gitlab-org/cli:latest
+  needs: [iso]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - 'echo "Releasing $VERSION"'
+  release:
+    tag_name: $VERSION
+    ref: $CI_COMMIT_SHA
+    name: Mint Server (unofficial) $VERSION
+    description: |
+      Mint Server (unofficial) installer ISO, built from $CI_COMMIT_SHORT_SHA by pipeline $CI_PIPELINE_IID.
+
+      SHA-256 of `$ISO_NAME`: `$ISO_SHA256`
+    assets:
+      links:
+        - name: $ISO_NAME
+          url: $PKG_URL/$ISO_NAME
+          direct_asset_path: /$ISO_NAME
+          link_type: image
+        - name: $ISO_NAME.sha256
+          url: $PKG_URL/$ISO_NAME.sha256
+          direct_asset_path: /$ISO_NAME.sha256
+          link_type: other
+        - name: Package manifest
+          url: $PKG_URL/$MANIFEST_NAME
+          link_type: other
+        - name: $DEB_NAME
+          url: $PKG_URL/$DEB_NAME
+          link_type: package
