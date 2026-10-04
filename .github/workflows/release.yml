@@ -1,0 +1,39 @@
+# Builds the ISO on a GitHub-hosted runner and publishes it as a GitHub release.
+# Mirrors the GitLab pipeline (.gitlab-ci.yml): every push to main gets a
+# release tagged <MINT_RELEASE>-<run number>.
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ISO
+        run: ./build.sh
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          . config/build.conf
+          tag="${MINT_RELEASE}-${GITHUB_RUN_NUMBER}"
+          sha=$(cut -d' ' -f1 "out/$ISO_NAME.sha256")
+          notes=$(printf 'Mint Server (unofficial) installer ISO, built from %s by run %s.\n\nSHA-256 of `%s`: `%s`\n\nNot produced, endorsed or supported by the Linux Mint project.' \
+            "${GITHUB_SHA::8}" "$GITHUB_RUN_NUMBER" "$ISO_NAME" "$sha")
+          gh release create "$tag" --target "$GITHUB_SHA" \
+            --title "Mint Server (unofficial) $tag" --notes "$notes" \
+            "out/$ISO_NAME" "out/$ISO_NAME.sha256" "out/${ISO_NAME%.iso}.manifest" out/mint-server-base_*.deb

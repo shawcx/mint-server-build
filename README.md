@@ -12,7 +12,11 @@ base). It builds a bootable hybrid BIOS/UEFI installer ISO. The installed
 system boots to `multi-user.target`: no X server, Wayland compositor, display
 manager or desktop. It keeps the Linux Mint parts that make sense on a server.
 
-**[Download the latest ISO](https://code.skunk.tools/os/mint/server/-/releases/permalink/latest/downloads/mint-server-unofficial-22.3-amd64.iso)**
+**Download the latest ISO:**
+[GitHub](https://github.com/shawcx/mint-server-build/releases/latest/download/mint-server-unofficial-22.3-amd64.iso)
+([SHA-256](https://github.com/shawcx/mint-server-build/releases/latest/download/mint-server-unofficial-22.3-amd64.iso.sha256),
+[all releases](https://github.com/shawcx/mint-server-build/releases))
+or [code.skunk.tools](https://code.skunk.tools/os/mint/server/-/releases/permalink/latest/downloads/mint-server-unofficial-22.3-amd64.iso)
 ([SHA-256](https://code.skunk.tools/os/mint/server/-/releases/permalink/latest/downloads/mint-server-unofficial-22.3-amd64.iso.sha256),
 [all releases](https://code.skunk.tools/os/mint/server/-/releases))
 
@@ -69,7 +73,7 @@ cached in `work/cache/`, so rebuilds are fast.
 
 ### CI
 
-`.gitlab-ci.yml` builds the ISO on the `amd64` GitLab runner (Docker executor) by running `build.sh` against the host's Docker daemon. The runner's `config.toml` needs `volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock", "/srv/mint-server:/srv/mint-server"]` under `[runners.docker]`. `work/` persists in `/srv/mint-server/src` on the runner host, so its apt and debootstrap caches carry over between runs. ISOs are uploaded to the project's generic package registry as `mint-server-unofficial/22.3-<pipeline iid>`. Each build of `main` also creates a release (tag `22.3-<pipeline iid>`) linking to those files, which is what the download link above points at. The QEMU test isn't run in CI because it needs KVM.
+`.gitlab-ci.yml` builds the ISO on the `amd64` GitLab runner (Docker executor) by running `build.sh` against the host's Docker daemon. The runner's `config.toml` needs `volumes = ["/cache", "/var/run/docker.sock:/var/run/docker.sock", "/srv/mint-server:/srv/mint-server"]` under `[runners.docker]`. `work/` persists in `/srv/mint-server/src` on the runner host, so its apt and debootstrap caches carry over between runs. ISOs are uploaded to the project's generic package registry as `mint-server-unofficial/22.3-<pipeline iid>`. Each build of `main` also creates a release (tag `22.3-<pipeline iid>`) linking to those files, which is what the download link above points at. `.github/workflows/release.yml` does the same on GitHub Actions: every push to `main` builds the ISO on a hosted runner and publishes a GitHub release with the same files. The QEMU test isn't run in CI because it needs KVM.
 
 ## Installing
 
